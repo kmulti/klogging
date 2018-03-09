@@ -14,7 +14,7 @@ actual object KLoggers {
     private fun internalLogger(owner: Any): KLogger {
         val d = owner.asDynamic()
         return d.__logger ?: run {
-            val l = logger(owner::class.js.name)
+            val l = logger(owner::class.simpleName ?: owner::class.js.name)
             d.__logger = l
             l
         }
@@ -33,6 +33,6 @@ actual object KLoggers {
     }
 
     private fun calcLevel(name: String): KLoggingLevels {
-        return levels.filter { it.first.matches(name) }.maxBy{ it.second }?.second ?: defaultLoggingLevel
+        return levels.filter { it.first.matches(name) }.maxBy { it.second }?.second ?: defaultLoggingLevel
     }
 }
