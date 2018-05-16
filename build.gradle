@@ -1,40 +1,130 @@
-group 'org.jetbrains.klogging'
-version '1.0.0-SNAPSHOT'
-
 buildscript {
-	apply from: 'versions.gradle'
+    apply from: 'versions.gradle'
 
-	repositories {
+    repositories {
         maven { url "https://dl.bintray.com/kotlin/kotlin-dev" }
         mavenCentral()
         jcenter()
-	}
+    }
 
-	dependencies {
-		classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-	}
-}
-
-apply plugin: "maven"
-apply plugin: "maven-publish"
-
-publishing {
-    publications {
-        jvm(MavenPublication) {
-            artifactId 'klogging.jvm'
-            from findProject("klogging.jvm").components.java
-        }
-
-        js(MavenPublication) {
-            artifactId 'klogging.js'
-            from findProject("klogging.js").components.java
-        }
-
-        common(MavenPublication) {
-            artifactId 'klogging.common'
-            from findProject("klogging.common").components.java
-        }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.0"
     }
 }
 
+allprojects {
+    group 'io.github.kmulti'
+    version '1.2.41'
 
+    repositories {
+        mavenCentral()
+    }
+}
+
+apply plugin: "kotlin"
+
+subprojects {
+
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.jfrog.bintray'
+
+    afterEvaluate {
+        task sourceJar(type: Jar, dependsOn: classes) {
+            classifier 'sources'
+            from sourceSets.main.kotlin
+            duplicatesStrategy = "exclude"
+            def platformSrc = sourceSets.main.kotlin
+            def commonSrc = project(':klogging.common').sourceSets.main.kotlin
+            from (platformSrc + commonSrc)
+        }
+
+        task javadocJar(type: Jar, dependsOn: javadoc) {
+            classifier = 'javadoc'
+            from javadoc.destinationDir
+        }
+    }
+
+    def varintName = "${project.name}"
+    tasks.withType(Jar) {
+        archivesBaseName = varintName
+    }
+
+    // Create the pom configuration:
+    def pomConfig = {
+        name "klogging"
+        description "klogging $version - Multiplatform logging base implementation for Kotlin"
+        url "https://github.com/kmulti/klogging"
+
+        scm {
+            url "https://github.com/kmulti/klogging/tree/master"
+            connection "scm:git:git://github.com/kmulti/klogging.git"
+            developerConnection "scm:git:ssh://github.com:kmulti/klogging.git"
+        }
+        licenses {
+            license {
+                name "The Apache Software License, Version 2.0"
+                url "http://www.apache.org/licenses/LICENSE-2.0.txt"
+            }
+        }
+        developers {
+            developer {
+                id "lewik"
+                name "Lev Shagalov"
+                email "lllewik@gmail.com"
+            }
+            developer {
+                id "abissell"
+                name "Andrew Bissell"
+                email "abissell@gmail.com"
+            }
+        }
+    }
+
+    publishing {
+        publications {
+            mavenProject(MavenPublication) {
+                from components.java
+                groupId project.group
+                artifactId varintName
+                version project.version
+
+                pom.withXml {
+                    def root = asNode()
+                    root.appendNode('description', "klogging $version - Multiplatform logging base implementation for Kotlin")
+                    root.children().last() + pomConfig
+                }
+
+                artifact sourceJar {
+                    classifier "sources"
+                }
+
+                artifact javadocJar {
+                    classifier "javadoc"
+                }
+            }
+        }
+    }
+
+    bintray {
+        user = System.getProperty('bintray.user')
+        key = System.getProperty('bintray.key')
+        publications = ['mavenProject']
+        pkg {
+            repo = 'klogging'
+            name = 'klogging'
+            userOrg = 'kmulti'
+            licenses = ['Apache-2.0']
+            vcsUrl = 'https://github.com/kmulti/klogging'
+            websiteUrl = 'https://github.com/kmulti/klogging'
+            issueTrackerUrl = 'https://github.com/kmulti/klogging/issues'
+
+            githubRepo = 'kmulti/klogging'
+            version {
+                name = project.version
+                desc = "klogging - Multiplatform logging base implementation for Kotlin"
+                released = new Date()
+            }
+        }
+    }
+}
